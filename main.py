@@ -237,11 +237,10 @@ def fittings():
     # screws near the rim of the top plate
     for sx, sy in ((276, 616), (748, 616), (332, 700), (692, 700)):
         screw(sx, sy)
-    # printed label plaque on the front edge
-    rrect(BCX, 686, 404, 36, 8, (206, 201, 192))
-    rrect(BCX, 686, 404, 36, 8, (120, 116, 110), alpha=0.35, soft=1.0)
-    rrect(BCX, 686, 396, 29, 6, (212, 207, 198))
-    draw_text(BCX, 686, "EMBER-1 · USB CAMPFIRE", 3, (52, 50, 47))
+    # printed label, silkscreened straight onto the curved front of
+    # the puck: no plate behind it, just light lettering on the metal,
+    # so the body's own shading runs uninterrupted behind the words
+    draw_text(BCX, 686, "EMBER-1 · USB CAMPFIRE", 3, (219, 213, 201))
     # power switch, front right
     rrect(762, 684, 44, 24, 6, (44, 43, 44))
     rrect(754, 684, 18, 16, 4, (196, 193, 187))
@@ -288,17 +287,26 @@ def log(x1, y1, x2, y2, rad):
     ellipse(x2, y2, rad * 0.26, rad * 0.26, (203, 158, 104))
 
 
-def flame(cx, base_y, h, w, color, sway, alpha):
+def flame(cx, base_y, h, w, color, sway, alpha, phase=0.0):
     top = base_y - h
     for y in range(int(top), int(base_y) + 1):
         t = (base_y - y) / h                       # 0 bottom, 1 tip
         halfw = w * (math.sin(math.pi * min(t * 1.12, 1.0)) ** 0.72) * (1.0 - 0.22 * t)
         if halfw < 0.6:
             continue
-        cxc = cx + sway * t * t
-        for x in range(int(cxc - halfw - 2), int(cxc + halfw + 3)):
-            d = abs(x - cxc) / halfw
-            cov = clamp((1.0 - d) * halfw / 2.0) * alpha
+        # organic flicker: the two edges breathe independently, a small
+        # tongue of flame licks out on the side the flame leans toward,
+        # and the tip pinches irregularly instead of closing smoothly
+        hl = halfw * (1.0 + 0.16 * math.sin(t * 5.3 + phase))
+        hr = halfw * (1.0 - 0.13 * math.sin(t * 4.1 + phase * 1.7))
+        hr += math.exp(-((t - 0.52) ** 2) / 0.004) * w * 0.30
+        pinch = 1.0 - 0.18 * t * (0.5 + 0.5 * math.sin(t * 9.0 + phase * 2.3))
+        hl *= pinch
+        hr *= pinch
+        cxc = cx + sway * t * t + 3.0 * math.sin(t * 3.0 + phase)
+        for x in range(int(cxc - hl - 2), int(cxc + hr + 3)):
+            d = (x - cxc) / hl if x < cxc else (x - cxc) / hr
+            cov = clamp((1.0 - abs(d)) * halfw / 2.0) * alpha
             if cov > 0.0:
                 put(x, y, color[0], color[1], color[2], cov)
 
@@ -311,14 +319,19 @@ def fire():
     # the flame lights everything around it
     radial_light(512, 545, 330, (255, 166, 74), 0.30)
     radial_light(512, 560, 170, (255, 190, 96), 0.38)
-    # living flame, layered teardrops
-    flame(512, 616, 196, 62, (255, 106, 18), 12, 0.95)
-    flame(512, 616, 158, 45, (255, 158, 26), 9, 0.97)
-    flame(512, 616, 116, 30, (255, 205, 62), 6, 0.98)
-    flame(512, 616, 74, 16, (255, 242, 186), 3, 1.0)
+    # soft halo hugging the fire bed, so the logs and stones glow
+    ellipse(512, 608, 158, 36, (255, 138, 38), alpha=0.15, soft=10.0)
+    ellipse(512, 602, 104, 24, (255, 176, 64), alpha=0.18, soft=8.0)
+    # living flame, layered flickering tongues
+    flame(512, 616, 196, 62, (255, 106, 18), 12, 0.95, phase=0.0)
+    flame(512, 616, 158, 45, (255, 158, 26), 9, 0.97, phase=1.3)
+    flame(512, 616, 116, 30, (255, 205, 62), 6, 0.98, phase=2.1)
+    flame(512, 616, 74, 16, (255, 242, 186), 3, 1.0, phase=2.9)
     # warm reflection of the fire on the floor in front
     ellipse(512, 736, 130, 13, (255, 140, 50), alpha=0.10, soft=8.0)
     stones(back=False)
+    # a last breath of halo over the front stones
+    ellipse(512, 616, 172, 40, (255, 150, 50), alpha=0.07, soft=12.0)
 
 
 # ---------------------------------------------------------------- cable & accessory
@@ -345,16 +358,25 @@ def cable():
 
 
 def marshmallow():
-    # the one accessory: a marshmallow on a stick, toasting over the flame
-    capsule(818, 312, 606, 458, 4.5, (158, 126, 84))
-    capsule(812, 316, 612, 454, 1.8, (196, 164, 116), alpha=0.8)
-    # body of the marshmallow
-    capsule(598, 466, 668, 402, 27, (243, 238, 229))
-    capsule(604, 458, 664, 408, 20, (252, 249, 243), alpha=0.85)
-    # toasted side facing the flame: golden-brown gradient patches
-    capsule(600, 470, 640, 436, 17, (198, 132, 56), alpha=0.55, soft=5.0)
-    ellipse(612, 462, 13, 10, (168, 102, 38), alpha=0.55, soft=4.0)
-    ellipse(626, 446, 8, 6, (146, 84, 28), alpha=0.5, soft=3.0)
+    # the one accessory: a plump marshmallow pierced on the END of a
+    # stick, hovering just above the flame's edge to toast.  The stick
+    # and the marshmallow share one axis, so it sits on the stick's end
+    # instead of floating beside it.
+    ex, ey = 638, 406            # far end, where the stick enters
+    nx, ny = 604, 428            # near end, toward the flame
+    capsule(816, 302, 630, 410, 4.5, (158, 126, 84))
+    capsule(810, 306, 636, 408, 1.8, (198, 166, 118), alpha=0.8)
+    # soft shadow side, low and away from the firelight
+    capsule(ex + 6, ey + 9, nx + 6, ny + 9, 30, (214, 202, 184), alpha=0.55, soft=3.0)
+    # plump body: short axis, fat radius
+    capsule(ex, ey, nx, ny, 30, (246, 241, 233))
+    capsule(ex - 4, ey - 5, nx - 4, ny - 5, 21, (253, 250, 245), alpha=0.8)
+    # firelight warming the side that faces the flame
+    radial_light(596, 436, 95, (255, 172, 84), 0.16)
+    # golden toasted patch on the flame-facing end
+    ellipse(594, 440, 19, 14, (204, 140, 60), alpha=0.60, soft=5.0)
+    ellipse(590, 445, 11, 8, (164, 98, 34), alpha=0.55, soft=4.0)
+    ellipse(600, 430, 7, 5, (226, 170, 92), alpha=0.50, soft=3.0)
 
 
 # ---------------------------------------------------------------- finish
